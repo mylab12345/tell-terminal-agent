@@ -1,4 +1,4 @@
-# AI Terminal Agent launcher for Windows (PowerShell).
+# Tell launcher for Windows (PowerShell).
 
 Push-Location "$PSScriptRoot"
 try {

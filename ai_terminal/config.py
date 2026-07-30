@@ -1,9 +1,9 @@
-"""Configuration loading for the AI terminal agent.
+"""Configuration loading for Tell.
 
 Reads settings from environment variables and a local ``.env`` file so the
-agent can be configured without editing source code.  Supports several
-free-tier OpenAI-compatible providers (Groq, Google Gemini, OpenRouter,
-Cerebras, SambaNova) via a single ``AI_PROVIDER`` switch.
+answer-only assistant can be configured without editing source code. Supports
+several free-tier OpenAI-compatible providers (Groq, Google Gemini, OpenRouter, Cerebras,
+SambaNova) via a single ``AI_PROVIDER`` switch.
 """
 
 from __future__ import annotations
@@ -78,7 +78,7 @@ PROVIDERS: dict[str, dict[str, str]] = {
 
 @dataclass(frozen=True)
 class Settings:
-    """Runtime configuration for the agent."""
+    """Runtime configuration for Tell."""
 
     api_key: str
     model: str

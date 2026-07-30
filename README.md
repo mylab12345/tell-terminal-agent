@@ -1,19 +1,19 @@
-# AI Terminal Agent
+# Tell
 
-A lightweight, cross-platform AI coding agent that lives in your terminal. Describe a task in plain English, and it plans and executes shell commands, reads/writes files, and reports the results — with safety checks and interactive confirmation.
+Tell is a lightweight, cross-platform terminal Q&A assistant. Ask a question in plain English and it gives a clear answer in your terminal.
+
+**Answer-only by design:** Tell does **not** run commands, read local files, write files, edit your project, install packages, or operate your machine. If a question needs local context, paste the relevant text or command output into Tell.
 
 Works on **Linux**, **macOS**, and **Windows**. Uses any **OpenAI-compatible** chat model (OpenAI, Groq, Gemini, OpenRouter, Ollama, LM Studio, etc.).
 
 ## Features
 
-- 🤖 **LLM-driven tool loop** — the model decides what to do, runs tools, and iterates until done
-- 🛠️ **Multiple tools** — `run_command`, `read_file`, `write_file`, `edit_file`, `list_files`
-- 🌍 **Cross-platform** — auto-detects OS and uses the right shell (`bash`/`sh` on Unix, `cmd`/PowerShell on Windows)
-- 🛡️ **Safety layer** — flags destructive commands (Unix *and* Windows patterns) and asks for explicit confirmation
-- ⚡ **Auto-approve budget** — safe commands run without prompting (configurable)
-- 🎨 **Rich REPL** — colored output, slash commands (`/help`, `/clear`, `/cd`, `/exit`)
+- 💬 **Answers only** — focused natural-language responses, no autonomous execution
+- 🔒 **No local actions** — Tell never runs shell commands or changes files
+- 🎨 **Mission-grade Rich UI** — polished terminal panels for answers, configuration help, and errors
+- 🌍 **Cross-platform** — works on Linux, macOS, and Windows terminals
 - 🔌 **Multi-provider** — built-in presets for Groq, Gemini, OpenRouter, Cerebras, SambaNova, OpenAI
-- 📦 **Installable** — `pip install -e .` gives you `tell` and `aita` console commands
+- 📦 **Installable** — `pip install -e .` gives you the `tell` console command
 
 ## Project layout
 
@@ -22,17 +22,13 @@ tell-terminal-agent/
 ├── ai_terminal/
 │   ├── __init__.py      # public API + version
 │   ├── __main__.py      # `python -m ai_terminal` entry point
-│   ├── agent.py         # LLM + tool-calling loop
+│   ├── agent.py         # answer-only LLM conversation loop
 │   ├── cli.py           # interactive REPL + one-shot CLI
 │   ├── config.py        # settings from .env / environment
-│   ├── executor.py      # cross-platform subprocess runner
-│   ├── safety.py        # dangerous-command detection (Unix + Windows)
-│   └── tools.py         # tool JSON schemas for the LLM
+│   ├── executor.py      # command-runner utility retained for compatibility/tests
+│   ├── safety.py        # command-safety utility retained for compatibility/tests
+│   └── tools.py         # tool schemas retained for compatibility/tests
 ├── tests/
-│   ├── test_config.py
-│   ├── test_executor.py
-│   ├── test_safety.py
-│   └── test_tools.py
 ├── requirements.txt
 ├── pyproject.toml
 ├── .env.example
@@ -65,20 +61,19 @@ AI_PROVIDER=groq
 GROQ_API_KEY=gsk_your_key_here
 ```
 
-### 3. Run it
+### 3. Ask with `tell`
 
 **Interactive REPL:**
 ```bash
 tell
-# or: aita
 # or: python -m ai_terminal
 ```
 
 **One-shot query:**
 ```bash
-tell "find all TODO comments in this project"
-tell "create a Flask hello world app"
-tell "run the tests and fix any failures"
+tell "what does this error mean?"
+tell "how do I list the largest files in a folder?"
+tell "write a safe checklist for debugging a failing test suite"
 ```
 
 ## Configuration (`.env`)
@@ -93,8 +88,7 @@ tell "run the tests and fix any failures"
 | `AI_MODEL` | *(per provider)* | Override the default model |
 | `OPENAI_BASE_URL` | *(per provider)* | Override the base URL (for custom endpoints) |
 | `AI_TEMPERATURE` | `0.2` | Sampling temperature (0.0–1.0) |
-| `MAX_AUTO_STEPS` | `5` | Non-dangerous commands auto-approved per turn (`0` = always ask) |
-| `COMMAND_TIMEOUT` | `120` | Max seconds per command before timeout |
+| `COMMAND_TIMEOUT` | `120` | Retained for compatibility; unused by answer-only Tell |
 
 ### Using a local model (Ollama example)
 
@@ -108,43 +102,34 @@ AI_MODEL=llama3.1
 ## Usage examples
 
 ```
-agent (project)> list the largest files in this folder
-agent (project)> create a python project called demo with a hello world script
-agent (project)> show me the top 5 processes by memory usage
-agent (project)> find all .py files containing the word TODO
-agent (project)> read main.py and suggest improvements
-agent (project)> run pytest and fix any failing tests
+tell (project)> summarize this pasted stack trace
+tell (project)> what command lists the largest files in this folder?
+tell (project)> explain what pytest is reporting here: <paste output>
+tell (project)> suggest a safe git workflow before refactoring
+tell (project)> how do I check which process is using port 8000?
+tell (project)> turn this error message into a debugging checklist
 ```
 
-### Slash commands
+## Answer-only behavior
+
+Tell sends your query to the configured model without tool access. It will not inspect your repository or execute anything locally.
+
+If you ask Tell to do something on your machine, it should respond with guidance instead, for example:
+
+- commands you can choose to run yourself
+- what output to paste back for help
+- safety warnings for risky operations
+- a concise explanation of assumptions
+
+## Slash commands
 
 | Command | Action |
 |---|---|
 | `/help` | Show help |
 | `/clear` | Clear conversation history |
-| `/cwd` | Print current working directory |
-| `/cd PATH` | Change working directory |
+| `/cwd` | Print current working directory label |
+| `/cd PATH` | Change the prompt's working directory label/context |
 | `/exit` | Quit (also Ctrl+C / Ctrl+D) |
-
-## How it works
-
-1. Your request is sent to the LLM with a system prompt describing the environment and available tools.
-2. The model returns one or more tool calls (commands, file operations).
-3. Each command is checked by the safety layer:
-   - **Dangerous** → always asks for `y/N` confirmation
-   - **Safe** → auto-approved up to `MAX_AUTO_STEPS`, then asks
-4. The tool runs and the result is fed back to the model.
-5. The loop continues until the model stops calling tools and returns a final answer.
-
-## Tools
-
-| Tool | Description |
-|---|---|
-| `run_command` | Execute a shell command (auto-detects platform shell) |
-| `read_file` | Read a file's contents (with size limit) |
-| `write_file` | Create or overwrite a file (auto-creates parent dirs) |
-| `edit_file` | Search-and-replace within a file |
-| `list_files` | List directory contents (optionally recursive) |
 
 ## Running tests
 
@@ -155,14 +140,7 @@ pytest
 
 ## Safety
 
-This agent runs real commands on your real machine. It is **not** sandboxed. Mitigations:
-
-- A denylist of destructive patterns (Unix + Windows) triggers confirmation prompts
-- A per-turn auto-approve budget prevents runaway execution
-- File operations and commands are always shown before execution
-- A configurable timeout kills long-running commands
-
-**You are responsible for reviewing actions before approving them.** Never give an AI agent access to a machine with data you cannot afford to lose.
+Tell is safer than an execution agent because it does not run commands or edit files. Still, review any command it suggests before running it yourself, especially commands that delete files, change permissions, install software, or modify system settings.
 
 ## License
 

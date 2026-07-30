@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cross-platform launcher for the AI terminal agent (Unix/macOS).
+# Cross-platform launcher for Tell (Unix/macOS).
 # Usage: ./tell.sh [query]
 
 set -e
