@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-terminal-agent"
+version = "0.1.0"
+description = "AI-powered terminal agent for Windows 11 that plans and runs shell commands via an OpenAI-compatible LLM."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "AITA" }]
+keywords = ["ai", "agent", "terminal", "cli", "windows", "openai"]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: System :: Shells",
+]
+dependencies = [
+    "openai>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "rich>=13.0.0",
+    "prompt_toolkit>=3.0.0",
+]
+
+[project.scripts]
+aita = "ai_terminal.cli:main"
+tell = "ai_terminal.cli:main"
+
+[tool.setuptools]
+packages = ["ai_terminal"]
