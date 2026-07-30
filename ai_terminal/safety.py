@@ -1,4 +1,4 @@
-"""Safety checks for shell commands proposed by the AI agent.
+"""Safety checks for shell commands proposed by Tell.
 
 The goal is not to be a perfect sandbox (that is impossible without a real
 sandbox) but to give the user a clear, last-chance confirmation before

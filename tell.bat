@@ -1,5 +1,5 @@
 @echo off
-REM AI Terminal Agent launcher for Windows (cmd.exe).
+REM Tell launcher for Windows (cmd.exe).
 setlocal
 cd /d "%~dp0"
 

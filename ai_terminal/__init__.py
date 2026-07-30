@@ -1,8 +1,8 @@
-"""AI Terminal Agent — a cross-platform AI coding agent.
+"""Tell — a cross-platform answer-only terminal assistant.
 
-A dependency-light agent that uses an OpenAI-compatible chat model
-to plan and run shell commands, read/write files, and help with
-coding tasks on any platform (Linux, macOS, Windows).
+A dependency-light assistant that uses an OpenAI-compatible chat model to
+answer terminal questions on any platform (Linux, macOS, Windows). Tell's
+runtime does not execute commands or modify local files.
 """
 
 from __future__ import annotations
@@ -15,12 +15,12 @@ from .safety import SafetyVerdict, assess
 __all__ = [
     "Agent",
     "AgentEvent",
-    "Settings",
-    "load_settings",
     "CommandResult",
-    "run_command",
     "SafetyVerdict",
+    "Settings",
     "assess",
+    "load_settings",
+    "run_command",
 ]
 
 __version__ = "0.2.0"

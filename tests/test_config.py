@@ -5,8 +5,6 @@ from __future__ import annotations
 import os
 from unittest.mock import patch
 
-import pytest
-
 from ai_terminal.config import Settings, _as_float, _as_int, load_settings
 
 

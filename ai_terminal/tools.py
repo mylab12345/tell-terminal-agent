@@ -1,6 +1,6 @@
 """Tool definitions (JSON schemas) exposed to the LLM.
 
-Each tool is described once here and shared by the agent and tests.
+Each tool is described once here and shared by Tell and the tests.
 """
 
 from __future__ import annotations

@@ -3,14 +3,14 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ai-terminal-agent"
+name = "tell-terminal-agent"
 version = "0.2.0"
-description = "Cross-platform AI coding agent that plans and runs shell commands, reads/writes files via an OpenAI-compatible LLM."
+description = "Cross-platform answer-only terminal assistant for natural-language questions via an OpenAI-compatible LLM."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "AI Terminal Agent Contributors" }]
-keywords = ["ai", "agent", "terminal", "cli", "coding", "openai"]
+authors = [{ name = "Tell Contributors" }]
+keywords = ["ai", "assistant", "terminal", "cli", "answers", "openai"]
 classifiers = [
     "Environment :: Console",
     "Intended Audience :: Developers",
@@ -39,7 +39,6 @@ dev = [
 ]
 
 [project.scripts]
-aita = "ai_terminal.cli:main"
 tell = "ai_terminal.cli:main"
 
 [tool.setuptools]

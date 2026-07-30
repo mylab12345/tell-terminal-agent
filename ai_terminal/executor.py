@@ -2,7 +2,7 @@
 
 Runs shell commands using the system's default shell (``/bin/sh`` on
 Unix, ``cmd.exe`` on Windows) and captures stdout + stderr.  Returns
-a structured result so the agent loop can feed the output back to the
+a structured result so the tool loop can feed the output back to the
 model.
 """
 

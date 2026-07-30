@@ -1,9 +1,9 @@
-"""Interactive REPL and one-shot CLI for the AI terminal agent.
+"""Interactive REPL and one-shot CLI for Tell.
 
-Provides a rich, colored terminal UI with:
-- a prompt with the current working directory,
-- streaming display of agent events (commands, output, answers),
-- per-command confirmation with extra warnings for dangerous commands,
+Provides a polished, mission-control style terminal UI with:
+- a prompt with the current working directory label,
+- structured rendering of answers and errors,
+- clear answer-only guidance,
 - slash commands for help, clear, exit, etc.
 
 Works on Linux, macOS, and Windows.
@@ -18,72 +18,45 @@ from pathlib import Path
 
 from .agent import Agent, AgentEvent
 from .config import PROVIDERS, Settings, load_settings
-from .safety import SafetyVerdict
 
 logger = logging.getLogger(__name__)
 
-HELP_TEXT = """\
-[bold cyan]AI Terminal Agent[/bold cyan]
+APP_NAME = "Tell"
+APP_TAGLINE = "Answer-only terminal assistant"
 
-Ask me to do something on your machine, e.g.:
-  - "list the largest files in this folder"
-  - "create a new python project called demo"
-  - "find all .py files that contain the word TODO"
-  - "explain what this code does and suggest improvements"
-  - "run the tests and fix any failures"
+HELP_TEXT = """\
+[bold cyan]Tell[/bold cyan]
+[dim]Ask questions and get clear answers. Tell never runs local commands.[/dim]
+
+[bold]How to ask:[/bold]
+  - "what does this error mean?"
+  - "how do I list the largest files in a folder?"
+  - "explain this pasted stack trace"
+  - "what is a safe git workflow before refactoring?"
+  - "write a checklist for debugging failing tests"
+
+[bold]Answer-only protocol:[/bold]
+  1. Tell gives answers only; it does not run commands or edit files.
+  2. If local context is needed, paste files, logs, or command output.
+  3. Suggested commands are instructions for you to review and run yourself.
+  4. Risky suggestions should be clearly labeled before you act.
 
 [bold]Slash commands:[/bold]
   /help     Show this help
   /clear    Clear conversation history
   /cwd      Show the current working directory
   /cd PATH  Change the working directory
-  /exit     Quit the agent (also Ctrl+C or Ctrl+D)
+  /exit     Quit Tell (also Ctrl+C or Ctrl+D)
 """
 
 
 # ---------------------------------------------------------------------------
-# Confirmation callback
+# Small rendering helpers
 # ---------------------------------------------------------------------------
 
-def _make_confirm(settings: Settings, console):
-    """Build a confirmation callback honoring MAX_AUTO_STEPS + danger checks."""
-    auto_budget = settings.max_auto_steps
-
-    def confirm(command: str, verdict: SafetyVerdict) -> bool:
-        nonlocal auto_budget
-
-        if verdict.is_dangerous:
-            console.print(
-                f"[bold red]⚠  DANGEROUS:[/bold red] {verdict.reason}\n"
-                f"[yellow]Command:[/yellow] {command}"
-            )
-            answer = (
-                console.input(
-                    "[bold red]Run this dangerous command? (y/N): [/bold red]"
-                )
-                .strip()
-                .lower()
-            )
-            return answer in ("y", "yes")
-
-        if auto_budget > 0:
-            auto_budget -= 1
-            return True
-
-        console.print(f"[yellow]Command:[/yellow] {command}")
-        answer = (
-            console.input(
-                "[bold yellow]Run this command? (y/N/a=always): [/bold yellow]"
-            )
-            .strip()
-            .lower()
-        )
-        if answer in ("a", "always"):
-            auto_budget = settings.max_auto_steps
-            return True
-        return answer in ("y", "yes")
-
-    return confirm
+def _cwd_label(cwd: Path) -> str:
+    """Return a compact, friendly label for a current working directory."""
+    return cwd.name or str(cwd)
 
 
 # ---------------------------------------------------------------------------
@@ -91,29 +64,45 @@ def _make_confirm(settings: Settings, console):
 # ---------------------------------------------------------------------------
 
 def _render_event(event: AgentEvent, console) -> None:
-    """Render a single agent event to the console."""
-    if event.kind == "command":
-        shell = event.extra.get("shell", "auto")
-        verdict: SafetyVerdict | None = event.extra.get("verdict")
-        tag = "[bold magenta]CMD[/bold magenta]"
-        if verdict and verdict.is_dangerous:
-            tag = "[bold red]CMD(!)[/bold red]"
-        console.print(f"{tag} ({shell}) {event.text}")
-    elif event.kind == "output":
-        rc = event.extra.get("returncode", "?")
-        ok = event.extra.get("ok", False)
-        color = "green" if ok else "red"
+    """Render a single Tell event to the console."""
+    from rich.markdown import Markdown
+    from rich.panel import Panel
+    from rich.text import Text
+
+    if event.kind == "answer":
+        answer = event.text.strip() or "I could not generate an answer."
         console.print(
-            f"[{color}]exit={rc}[/{color}]\n[dim]{event.text}[/dim]"
+            Panel(
+                Markdown(answer),
+                title="[bold green]✓ Answer[/bold green]",
+                border_style="green",
+            )
         )
-    elif event.kind == "answer":
-        console.print(f"\n[bold green]Agent:[/bold green] {event.text}\n")
-    elif event.kind == "error":
-        console.print(f"[bold red]ERROR:[/bold red] {event.text}")
-    elif event.kind == "info":
-        console.print(f"[dim]{event.text}[/dim]")
-    elif event.kind == "file_op":
-        console.print(f"[bold blue]FILE:[/bold blue] {event.text}")
+        return
+
+    if event.kind == "error":
+        console.print(
+            Panel(
+                Text(event.text),
+                title="[bold red]Anomaly detected[/bold red]",
+                border_style="red",
+                expand=False,
+            )
+        )
+        return
+
+    if event.kind == "info":
+        console.print(
+            Panel(
+                Markdown(event.text.strip() or "Note"),
+                title="[bold blue]Note[/bold blue]",
+                border_style="blue",
+                expand=False,
+            )
+        )
+        return
+
+    console.print(Text(event.text))
 
 
 # ---------------------------------------------------------------------------
@@ -137,14 +126,18 @@ def _render_query_output(query: str, settings: Settings | None = None) -> int:
         return 1
 
     cwd = Path.cwd()
-    confirm = _make_confirm(settings, console)
-    agent = Agent(settings, cwd=cwd, confirm=confirm)
+    agent = Agent(settings, cwd=cwd)
+
+    console.print(
+        f"[bold cyan]● {APP_NAME}[/bold cyan] "
+        f"[dim]({settings.provider}/{settings.model}, cwd={cwd})[/dim]"
+    )
 
     try:
         for event in agent.run(query):
             _render_event(event, console)
     except KeyboardInterrupt:
-        console.print("\n[yellow]Interrupted by user.[/yellow]")
+        console.print("\n[yellow]Mission interrupted by user.[/yellow]")
 
     return 0
 
@@ -158,7 +151,6 @@ def run_repl(settings: Settings | None = None) -> int:
     try:
         from rich.console import Console
         from rich.panel import Panel
-        from rich.prompt import Prompt
     except ImportError as exc:
         print(f"Missing dependency (rich): {exc}")
         print("Run: pip install -r requirements.txt")
@@ -172,26 +164,34 @@ def run_repl(settings: Settings | None = None) -> int:
         return 1
 
     cwd = Path.cwd()
-    confirm = _make_confirm(settings, console)
-    agent = Agent(settings, cwd=cwd, confirm=confirm)
+    agent = Agent(settings, cwd=cwd)
 
     console.print(
         Panel(
-            f"[bold cyan]AI Terminal Agent[/bold cyan]\n"
+            f"[bold cyan]{APP_NAME}[/bold cyan]\n"
+            f"[dim]{APP_TAGLINE}[/dim]\n\n"
             f"Provider: [magenta]{settings.provider}[/magenta]  "
-            f"Model: [green]{settings.model}[/green]  "
+            f"Model: [green]{settings.model}[/green]\n"
             f"CWD: [blue]{cwd}[/blue]\n"
-            f"Type /help for commands. Ctrl+C or /exit to quit.",
+            f"Mode: [green]answers only[/green] — "
+            f"[yellow]no local commands[/yellow], "
+            f"[yellow]no file changes[/yellow]\n\n"
+            f"Type [bold]/help[/bold] for commands. Ctrl+C or /exit to quit.",
+            title="🚀 Launch Console",
             border_style="cyan",
         )
     )
 
     while True:
         try:
-            prompt_text = f"[bold cyan]agent ({cwd.name})>[/bold cyan] "
-            user_input = Prompt.ask(prompt_text, console=console).strip()
+            prompt_text = (
+                f"[bold cyan]tell[/bold cyan] "
+                f"[dim]({_cwd_label(cwd)})[/dim] "
+                f"[bold cyan]>[/bold cyan] "
+            )
+            user_input = console.input(prompt_text).strip()
         except (EOFError, KeyboardInterrupt):
-            console.print("\n[dim]Goodbye.[/dim]")
+            console.print("\n[dim]Mission closed. Goodbye.[/dim]")
             return 0
 
         if not user_input:
@@ -202,24 +202,23 @@ def run_repl(settings: Settings | None = None) -> int:
             cmd, *rest = user_input[1:].split(maxsplit=1)
             arg = rest[0] if rest else ""
             if cmd in ("exit", "quit"):
-                console.print("[dim]Goodbye.[/dim]")
+                console.print("[dim]Mission closed. Goodbye.[/dim]")
                 return 0
             if cmd == "help":
-                console.print(Panel(HELP_TEXT, border_style="cyan"))
+                console.print(Panel(HELP_TEXT, title="Help", border_style="cyan"))
                 continue
             if cmd == "clear":
-                confirm = _make_confirm(settings, console)
-                agent = Agent(settings, cwd=cwd, confirm=confirm)
-                console.print("[dim]Conversation cleared.[/dim]")
+                agent = Agent(settings, cwd=cwd)
+                console.print("[dim]Conversation cleared. Fresh mission context loaded.[/dim]")
                 continue
             if cmd == "cwd":
-                console.print(str(cwd))
+                console.print(f"[blue]{cwd}[/blue]")
                 continue
             if cmd == "cd":
                 new_cwd = (cwd / arg).resolve() if arg else Path.home()
                 if new_cwd.exists() and new_cwd.is_dir():
                     cwd = new_cwd
-                    agent = Agent(settings, cwd=cwd, confirm=confirm)
+                    agent = Agent(settings, cwd=cwd)
                     console.print(f"[dim]CWD → {cwd}[/dim]")
                 else:
                     console.print(f"[red]Not a directory: {new_cwd}[/red]")
@@ -231,10 +230,17 @@ def run_repl(settings: Settings | None = None) -> int:
             for event in agent.run(user_input):
                 _render_event(event, console)
         except KeyboardInterrupt:
-            console.print("\n[yellow]Interrupted by user.[/yellow]")
+            console.print("\n[yellow]Mission interrupted by user.[/yellow]")
         except Exception as exc:
-            logger.exception("Unexpected error in agent loop")
-            console.print(f"[bold red]Unexpected error:[/bold red] {exc}")
+            logger.exception("Unexpected error in Tell loop")
+            console.print(
+                Panel(
+                    str(exc),
+                    title="[bold red]Unexpected anomaly[/bold red]",
+                    border_style="red",
+                    expand=False,
+                )
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -266,7 +272,7 @@ def _print_config_error(settings: Settings, console) -> None:
             f"1. Copy .env.example to .env\n"
             f"2. Set [bold]{key_env}=your-key[/bold]\n"
             f"3. Optionally set [bold]AI_PROVIDER={settings.provider}[/bold]\n"
-            f"4. Restart the agent.\n\n"
+            f"4. Restart Tell.\n\n"
             "[bold]Supported providers:[/bold]\n"
             + "\n".join(free_lines)
             + "\n\nSee README.md for details.",
@@ -286,12 +292,15 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(
         prog="tell",
-        description="AI Terminal Agent — run coding tasks from natural language.",
+        description=(
+            "Tell — an answer-only terminal assistant for "
+            "natural-language questions."
+        ),
     )
     parser.add_argument(
         "query",
         nargs="*",
-        help="Natural-language query to run (omit for interactive REPL).",
+        help="Natural-language question to answer (omit for interactive REPL).",
     )
     parser.add_argument(
         "-v", "--verbose",
@@ -306,7 +315,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         logging.basicConfig(level=logging.WARNING)
 
-    # Strip leading "tell" if present (for backward compat: `aita tell ...`)
+    # Strip leading "tell" if users paste the full command into the query.
     query_parts = args.query or []
     if query_parts and query_parts[0].lower() == "tell":
         query_parts = query_parts[1:]
