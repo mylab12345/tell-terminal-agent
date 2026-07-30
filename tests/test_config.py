@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from unittest.mock import patch
 
-from ai_terminal.config import Settings, _as_float, _as_int, load_settings
+from ai_terminal.config import Settings, _as_bool, _as_float, _as_int, load_settings
 
 
 class TestSettings:
@@ -58,6 +58,11 @@ class TestHelpers:
 
     def test_as_int_invalid(self):
         assert _as_int("abc", 5) == 5
+
+    def test_as_bool(self):
+        assert _as_bool("true", False)
+        assert _as_bool("OFF", True) is False
+        assert _as_bool("invalid", True)
 
 
 class TestLoadSettings:

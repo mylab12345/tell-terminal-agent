@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from ai_terminal.agent import Agent, SYSTEM_PROMPT
 from ai_terminal.config import Settings
 
@@ -20,12 +22,26 @@ class _FakeResponse:
         self.choices = [_FakeChoice()]
 
 
+class _FakeDelta:
+    content = "Tell answer"
+
+
+class _FakeStreamChoice:
+    delta = _FakeDelta()
+
+
+class _FakeStreamChunk:
+    choices = [_FakeStreamChoice()]
+
+
 class _FakeCompletions:
     def __init__(self) -> None:
         self.kwargs = None
 
     def create(self, **kwargs):
         self.kwargs = kwargs
+        if kwargs.get("stream"):
+            return iter([_FakeStreamChunk()])
         return _FakeResponse()
 
 
@@ -47,6 +63,7 @@ def _settings() -> Settings:
         temperature=0.2,
         max_auto_steps=5,
         provider="test",
+        stream=False,
     )
 
 
@@ -70,6 +87,26 @@ def test_agent_does_not_expose_tools_to_model(monkeypatch):
     assert request["temperature"] == 0.2
     assert "tools" not in request
     assert "tool_choice" not in request
+    assert "stream" not in request
+
+
+def test_agent_streams_deltas_before_final_answer(monkeypatch):
+    fake_client = _FakeClient()
+
+    import openai
+
+    monkeypatch.setattr(openai, "OpenAI", lambda **_kwargs: fake_client)
+
+    agent = Agent(replace(_settings(), stream=True))
+    events = list(agent.run("hello"))
+
+    assert [(event.kind, event.text) for event in events] == [
+        ("answer_delta", "Tell answer"),
+        ("answer", "Tell answer"),
+    ]
+    request = fake_client.chat.completions.kwargs
+    assert request is not None
+    assert request["stream"] is True
 
 
 def test_system_prompt_adapts_depth_without_exposing_reasoning():

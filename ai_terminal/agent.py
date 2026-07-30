@@ -141,19 +141,37 @@ class Agent:
         """
         self.history.append({"role": "user", "content": user_input})
 
+        request: dict[str, Any] = {
+            "model": self.settings.model,
+            "messages": self.history,
+            "temperature": self.settings.temperature,
+        }
+
         try:
-            response = self.client.chat.completions.create(
-                model=self.settings.model,
-                messages=self.history,
-                temperature=self.settings.temperature,
-            )
+            if self.settings.stream:
+                # Streaming makes the first useful text visible as soon as the
+                # provider generates it, rather than after the whole response.
+                response = self.client.chat.completions.create(**request, stream=True)
+                parts: list[str] = []
+                for chunk in response:
+                    choices = getattr(chunk, "choices", [])
+                    if not choices:
+                        continue
+                    delta = getattr(choices[0], "delta", None)
+                    text = getattr(delta, "content", None) if delta else None
+                    if text:
+                        parts.append(text)
+                        yield AgentEvent("answer_delta", text)
+                content = "".join(parts)
+            else:
+                response = self.client.chat.completions.create(**request)
+                msg = response.choices[0].message
+                content = msg.content or ""
         except Exception as exc:
             logger.exception("LLM request failed")
             yield AgentEvent("error", f"LLM request failed: {exc}")
             return
 
-        msg = response.choices[0].message
-        content = msg.content or ""
         self.history.append({"role": "assistant", "content": content})
         yield AgentEvent("answer", content)
 

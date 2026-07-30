@@ -64,20 +64,12 @@ def _cwd_label(cwd: Path) -> str:
 # ---------------------------------------------------------------------------
 
 def _render_event(event: AgentEvent, console) -> None:
-    """Render a single Tell event to the console."""
-    from rich.markdown import Markdown
+    """Render a non-streaming event to the console."""
     from rich.panel import Panel
     from rich.text import Text
 
     if event.kind == "answer":
-        answer = event.text.strip() or "I could not generate an answer."
-        console.print(
-            Panel(
-                Markdown(answer),
-                title="[bold green]✓ Answer[/bold green]",
-                border_style="green",
-            )
-        )
+        _render_agent_events([event], console)
         return
 
     if event.kind == "error":
@@ -103,6 +95,60 @@ def _render_event(event: AgentEvent, console) -> None:
         return
 
     console.print(Text(event.text))
+
+
+def _render_agent_events(events, console) -> None:
+    """Render an answer as it streams, using only top and bottom rules.
+
+    ``Live`` redraws within the terminal's current width, so ordinary prose and
+    Markdown reflow when the terminal is narrow without the side borders and
+    padding imposed by a panel.
+    """
+    from rich.console import Group
+    from rich.live import Live
+    from rich.markdown import Markdown
+    from rich.rule import Rule
+
+    def answer_view(answer: str):
+        return Group(
+            Rule("[bold green]✓ Answer[/bold green]", style="green"),
+            Markdown(answer or "…"),
+            Rule(style="green"),
+        )
+
+    parts: list[str] = []
+    live = None
+    deferred_events: list[AgentEvent] = []
+    try:
+        for event in events:
+            if event.kind == "answer_delta":
+                parts.append(event.text)
+            elif event.kind == "answer":
+                # Streaming sends a final answer event for history/API users;
+                # do not append it after already-rendered delta text.
+                if not parts:
+                    parts.append(event.text)
+            else:
+                deferred_events.append(event)
+                continue
+
+            if live is None:
+                live = Live(
+                    answer_view("".join(parts)),
+                    console=console,
+                    refresh_per_second=12,
+                    transient=False,
+                    vertical_overflow="visible",
+                )
+                live.start()
+            else:
+                live.update(answer_view("".join(parts)))
+    finally:
+        if live is not None:
+            live.stop()
+
+    for event in deferred_events:
+        _render_event(event, console)
 
 
 # ---------------------------------------------------------------------------
@@ -134,8 +180,7 @@ def _render_query_output(query: str, settings: Settings | None = None) -> int:
     )
 
     try:
-        for event in agent.run(query):
-            _render_event(event, console)
+        _render_agent_events(agent.run(query), console)
     except KeyboardInterrupt:
         console.print("\n[yellow]Mission interrupted by user.[/yellow]")
 
@@ -227,8 +272,7 @@ def run_repl(settings: Settings | None = None) -> int:
             continue
 
         try:
-            for event in agent.run(user_input):
-                _render_event(event, console)
+            _render_agent_events(agent.run(user_input), console)
         except KeyboardInterrupt:
             console.print("\n[yellow]Mission interrupted by user.[/yellow]")
         except Exception as exc:

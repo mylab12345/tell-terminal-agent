@@ -9,6 +9,8 @@ Works on **Linux**, **macOS**, and **Windows**. Uses any **OpenAI-compatible** c
 ## Features
 
 - 💬 **Adaptive answer quality** — concise for simple questions; structured, rigorous guidance for complex technical questions
+- ⚡ **Streaming answers** — shows generated text immediately instead of waiting for the complete response
+- ↔️ **Terminal-fit output** — answers reflow to the terminal width with only top and bottom separators
 - 🔒 **No local actions** — Tell never runs shell commands or changes files
 - 🎨 **Mission-grade Rich UI** — polished terminal panels for answers, configuration help, and errors
 - 🌍 **Cross-platform** — works on Linux, macOS, and Windows terminals
@@ -88,6 +90,7 @@ tell "write a safe checklist for debugging a failing test suite"
 | `AI_MODEL` | *(per provider)* | Override the default model |
 | `OPENAI_BASE_URL` | *(per provider)* | Override the base URL (for custom endpoints) |
 | `AI_TEMPERATURE` | `0.2` | Sampling temperature (0.0–1.0) |
+| `AI_STREAM` | `true` | Stream text as it is generated; set to `false` only for providers without streaming support |
 | `COMMAND_TIMEOUT` | `120` | Retained for compatibility; unused by answer-only Tell |
 
 ### Using a local model (Ollama example)
