@@ -1,8 +1,8 @@
-"""AITA - AI Terminal Agent for Windows 11.
+"""AI Terminal Agent — a cross-platform AI coding agent.
 
-A small, dependency-light agent that uses an OpenAI-compatible chat model
-to plan and run shell commands on the user's machine, with safety checks
-and interactive confirmation.
+A dependency-light agent that uses an OpenAI-compatible chat model
+to plan and run shell commands, read/write files, and help with
+coding tasks on any platform (Linux, macOS, Windows).
 """
 
 from __future__ import annotations
@@ -23,4 +23,4 @@ __all__ = [
     "assess",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

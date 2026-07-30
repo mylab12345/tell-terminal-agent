@@ -8,24 +8,30 @@ Cerebras, SambaNova) via a single ``AI_PROVIDER`` switch.
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 try:
     from dotenv import load_dotenv
-except Exception:  # pragma: no cover - dotenv is optional at runtime
+except ImportError:  # dotenv is optional at runtime
     def load_dotenv(*_args, **_kwargs):  # type: ignore[misc]
         return False
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-
+# ---------------------------------------------------------------------------
+# Provider presets
+# ---------------------------------------------------------------------------
 # Known free-tier OpenAI-compatible providers.  Each preset supplies a
 # base URL, a default model, and the name of the env var that holds the
 # API key.  All of these expose an OpenAI-compatible /chat/completions
-# endpoint so the same `openai` client works for every provider.
+# endpoint so the same ``openai`` client works for every provider.
+
 PROVIDERS: dict[str, dict[str, str]] = {
     "groq": {
         "base_url": "https://api.groq.com/openai/v1",
@@ -35,7 +41,7 @@ PROVIDERS: dict[str, dict[str, str]] = {
     },
     "gemini": {
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
-        "model": "gemini-1.5-flash",
+        "model": "gemini-2.0-flash",
         "key_env": "GEMINI_API_KEY",
         "label": "Google Gemini (free — https://aistudio.google.com/apikey)",
     },
@@ -66,6 +72,10 @@ PROVIDERS: dict[str, dict[str, str]] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Settings dataclass
+# ---------------------------------------------------------------------------
+
 @dataclass(frozen=True)
 class Settings:
     """Runtime configuration for the agent."""
@@ -76,13 +86,23 @@ class Settings:
     temperature: float
     max_auto_steps: int
     provider: str
+    command_timeout: float = 120.0
 
     @property
     def is_configured(self) -> bool:
-        """Return True when an API key is present and non-placeholder."""
-        return bool(self.api_key) and not self.api_key.startswith("sk-your-key") \
-            and not self.api_key.lower() in ("your-key", "placeholder")
+        """Return ``True`` when an API key is present and non-placeholder."""
+        if not self.api_key:
+            return False
+        return self.api_key.lower() not in (
+            "your-key",
+            "placeholder",
+            "sk-your-key-here",
+        ) and not self.api_key.startswith("sk-your-key")
 
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def _as_float(value: str | None, default: float) -> float:
     if value is None or value.strip() == "":
@@ -90,6 +110,7 @@ def _as_float(value: str | None, default: float) -> float:
     try:
         return float(value)
     except ValueError:
+        logger.warning("Invalid float value %r, using default %s", value, default)
         return default
 
 
@@ -99,14 +120,19 @@ def _as_int(value: str | None, default: int) -> int:
     try:
         return int(value)
     except ValueError:
+        logger.warning("Invalid int value %r, using default %s", value, default)
         return default
 
+
+# ---------------------------------------------------------------------------
+# Settings loader
+# ---------------------------------------------------------------------------
 
 def load_settings(env_path: Path | str | None = None) -> Settings:
     """Load settings from ``.env`` and the process environment.
 
     Args:
-        env_path: Optional path to a ``.env`` file. Defaults to
+        env_path: Optional path to a ``.env`` file.  Defaults to
             ``<project_root>/.env``.
     """
     if env_path is None:
@@ -114,7 +140,12 @@ def load_settings(env_path: Path | str | None = None) -> Settings:
     load_dotenv(str(env_path))
 
     provider = os.getenv("AI_PROVIDER", "groq").strip().lower() or "groq"
-    preset = PROVIDERS.get(provider, PROVIDERS["groq"])
+    if provider not in PROVIDERS:
+        logger.warning(
+            "Unknown provider %r — falling back to 'groq'", provider
+        )
+        provider = "groq"
+    preset = PROVIDERS[provider]
 
     # Resolve the API key: prefer the provider-specific env var, then fall
     # back to OPENAI_API_KEY (useful when switching providers quickly).
@@ -132,4 +163,5 @@ def load_settings(env_path: Path | str | None = None) -> Settings:
         temperature=_as_float(os.getenv("AI_TEMPERATURE"), 0.2),
         max_auto_steps=_as_int(os.getenv("MAX_AUTO_STEPS"), 5),
         provider=provider,
+        command_timeout=_as_float(os.getenv("COMMAND_TIMEOUT"), 120.0),
     )

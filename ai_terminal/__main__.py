@@ -1,4 +1,4 @@
-"""Entry point so the agent can be run with `python -m ai_terminal`."""
+"""Entry point so the agent can be run with ``python -m ai_terminal``."""
 
 from __future__ import annotations
 

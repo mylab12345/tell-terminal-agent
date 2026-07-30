@@ -4,26 +4,38 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-terminal-agent"
-version = "0.1.0"
-description = "AI-powered terminal agent for Windows 11 that plans and runs shell commands via an OpenAI-compatible LLM."
+version = "0.2.0"
+description = "Cross-platform AI coding agent that plans and runs shell commands, reads/writes files via an OpenAI-compatible LLM."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "AITA" }]
-keywords = ["ai", "agent", "terminal", "cli", "windows", "openai"]
+authors = [{ name = "AI Terminal Agent Contributors" }]
+keywords = ["ai", "agent", "terminal", "cli", "coding", "openai"]
 classifiers = [
     "Environment :: Console",
     "Intended Audience :: Developers",
-    "Operating System :: Microsoft :: Windows",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development",
     "Topic :: System :: Shells",
 ]
 dependencies = [
     "openai>=1.0.0",
     "python-dotenv>=1.0.0",
     "rich>=13.0.0",
-    "prompt_toolkit>=3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.4.0",
+    "mypy>=1.0",
 ]
 
 [project.scripts]
@@ -32,3 +44,24 @@ tell = "ai_terminal.cli:main"
 
 [tool.setuptools]
 packages = ["ai_terminal"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]  # line length handled by formatter
+
+[tool.ruff.lint.isort]
+known-first-party = ["ai_terminal"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
