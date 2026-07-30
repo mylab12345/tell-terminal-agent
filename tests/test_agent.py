@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ai_terminal.agent import Agent
+from ai_terminal.agent import Agent, SYSTEM_PROMPT
 from ai_terminal.config import Settings
 
 
@@ -70,3 +70,17 @@ def test_agent_does_not_expose_tools_to_model(monkeypatch):
     assert request["temperature"] == 0.2
     assert "tools" not in request
     assert "tool_choice" not in request
+
+
+def test_system_prompt_adapts_depth_without_exposing_reasoning():
+    prompt = SYSTEM_PROMPT.format(
+        os_info="TestOS 1.0 (test)",
+        default_shell="bash",
+        cwd="/tmp/project",
+    )
+
+    assert "Silently calibrate depth to the request" in prompt
+    assert "simple factual or how-to question" in prompt
+    assert "multi-step, ambiguous, technical, or high-stakes question" in prompt
+    assert "Do not expose private chain-of-thought" in prompt
+    assert "Give the answer first" in prompt

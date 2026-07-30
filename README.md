@@ -8,7 +8,7 @@ Works on **Linux**, **macOS**, and **Windows**. Uses any **OpenAI-compatible** c
 
 ## Features
 
-- 💬 **Answers only** — focused natural-language responses, no autonomous execution
+- 💬 **Adaptive answer quality** — concise for simple questions; structured, rigorous guidance for complex technical questions
 - 🔒 **No local actions** — Tell never runs shell commands or changes files
 - 🎨 **Mission-grade Rich UI** — polished terminal panels for answers, configuration help, and errors
 - 🌍 **Cross-platform** — works on Linux, macOS, and Windows terminals
