@@ -87,6 +87,7 @@ class Settings:
     max_auto_steps: int
     provider: str
     command_timeout: float = 120.0
+    stream: bool = True
 
     @property
     def is_configured(self) -> bool:
@@ -122,6 +123,19 @@ def _as_int(value: str | None, default: int) -> int:
     except ValueError:
         logger.warning("Invalid int value %r, using default %s", value, default)
         return default
+
+
+def _as_bool(value: str | None, default: bool) -> bool:
+    """Parse a conventional environment-variable boolean."""
+    if value is None or value.strip() == "":
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    logger.warning("Invalid boolean value %r, using default %s", value, default)
+    return default
 
 
 # ---------------------------------------------------------------------------
@@ -164,4 +178,5 @@ def load_settings(env_path: Path | str | None = None) -> Settings:
         max_auto_steps=_as_int(os.getenv("MAX_AUTO_STEPS"), 5),
         provider=provider,
         command_timeout=_as_float(os.getenv("COMMAND_TIMEOUT"), 120.0),
+        stream=_as_bool(os.getenv("AI_STREAM"), True),
     )
