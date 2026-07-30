@@ -1,5 +1,4 @@
-# PowerShell launcher for the AI terminal agent.
-# Run this from the project folder with .\tell.ps1 or add the folder to PATH.
+# AI Terminal Agent launcher for Windows (PowerShell).
 
 Push-Location "$PSScriptRoot"
 try {
@@ -7,19 +6,15 @@ try {
         & ".venv\Scripts\python.exe" -m ai_terminal @args
         exit $LASTEXITCODE
     }
-
     if (Get-Command python -ErrorAction SilentlyContinue) {
         python -m ai_terminal @args
         exit $LASTEXITCODE
     }
-
     if (Get-Command py -ErrorAction SilentlyContinue) {
         py -3 -m ai_terminal @args
         exit $LASTEXITCODE
     }
-
-    Write-Error "Python not found on PATH and the Python launcher (py) is not available."
-    Write-Error "Install Python, enable 'Add Python to PATH', or install the Python launcher."
+    Write-Error "Python not found. Install Python 3.10+ and add it to PATH."
     exit 1
 } finally {
     Pop-Location
